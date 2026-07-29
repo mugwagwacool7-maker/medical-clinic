@@ -1,0 +1,10 @@
+.list{display:flex;flex-direction:column;gap:14px;}
+.row{
+  background:#fff;border:1px solid var(--line);border-radius:12px;
+  padding:18px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
+}
+.left .svc{font-weight:600;}
+.left .sub{color:var(--muted);font-size:0.86rem;margin-top:3px;}
+.time{font-family:'IBM Plex Mono',monospace;font-size:0.88rem;background:var(--ok-bg);color:var(--teal-dark);padding:6px 12px;border-radius:8px;}
+.cancelBtn{background:none;border:1px solid var(--line);color:var(--coral-dark);border-radius:8px;padding:8px 14px;font-size:0.84rem;}
+.cancelBtn:hover{border-color:var(--coral-dark);background:#FDF1EC;}

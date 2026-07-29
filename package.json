@@ -1,0 +1,22 @@
+{
+  "name": "rhodes-dental",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "server": "node server.js",
+    "client": "cd client && npm run dev",
+    "dev": "npx concurrently \"npm run server\" \"npm run client\"",
+    "build": "cd client && npm run build",
+    "start": "set NODE_ENV=production && node server.js",
+    "postinstall": "cd client && npm install"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}

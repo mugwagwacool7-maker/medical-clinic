@@ -1,0 +1,21 @@
+.hero{padding:72px 0 56px;}
+.heroGrid{display:grid;grid-template-columns:1.05fr 0.95fr;gap:56px;align-items:start;}
+.hero h1{font-size:clamp(2.3rem, 4vw, 3.4rem);line-height:1.05;}
+.hero h1 em{font-style:italic;color:var(--teal);}
+.hero p{margin-top:20px;font-size:1.08rem;line-height:1.6;color:var(--muted);max-width:46ch;}
+.heroActions{display:flex;gap:14px;margin-top:30px;flex-wrap:wrap;}
+.heroStats{display:flex;gap:32px;margin-top:42px;}
+.heroStats div{font-family:'IBM Plex Mono',monospace;}
+.heroStats .num{font-size:1.5rem;color:var(--teal-dark);font-weight:500;}
+.heroStats .lbl{font-size:0.78rem;color:var(--muted);margin-top:2px;}
+.row1{display:flex;justify-content:space-between;align-items:center;}
+.clinicTag{font-family:'IBM Plex Mono',monospace;font-size:0.72rem;color:var(--muted);letter-spacing:0.05em;}
+.statusDot{display:flex;align-items:center;gap:6px;font-size:0.72rem;font-family:'IBM Plex Mono',monospace;color:var(--teal-dark);}
+.statusDot::before{content:"";width:6px;height:6px;border-radius:50%;background:#4F9C75;}
+.ticketTitle{margin-top:14px;font-size:1.3rem;}
+.ticketDoctor{color:var(--muted);font-size:0.88rem;margin-top:6px;}
+
+@media (max-width: 860px){
+  .heroGrid{grid-template-columns:1fr;}
+}
+

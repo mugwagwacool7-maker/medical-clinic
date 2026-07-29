@@ -1,0 +1,6 @@
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(12px);
+  background:var(--ink);color:#fff;padding:13px 22px;border-radius:999px;font-size:0.88rem;
+  opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;z-index:200;
+}
+.show{opacity:1;transform:translateX(-50%) translateY(0);}

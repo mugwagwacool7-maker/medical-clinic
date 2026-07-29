@@ -1,0 +1,26 @@
+header{
+  position:sticky;top:0;z-index:50;
+  background:rgba(250,246,239,0.92);
+  backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);
+}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;max-width:1080px;margin:0 auto;}
+.brand{display:flex;align-items:center;gap:10px;font-family:'Fraunces',serif;font-weight:600;font-size:1.25rem;}
+.brandMark{
+  width:34px;height:34px;border-radius:50%;
+  background:var(--teal);display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:1rem;flex:none;
+}
+.navlinks{display:flex;gap:28px;font-size:0.92rem;color:var(--muted);}
+.navlinks a{text-decoration:none;transition:color .15s;}
+.navlinks a:hover{color:var(--ink);}
+.navCta{
+  background:var(--coral);color:#fff;border:none;border-radius:999px;
+  padding:10px 22px;font-size:0.92rem;font-weight:600;
+  transition:background .15s, transform .15s;
+}
+.navCta:hover{background:var(--coral-dark);transform:translateY(-1px);}
+
+@media (max-width: 860px){
+  .navlinks{display:none;}
+}
