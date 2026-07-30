@@ -1,7 +1,12 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
+const { Resend } = require('resend');
 const { getDb } = require('./database');
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM_EMAIL = process.env.FROM_EMAIL || 'onboarding@resend.dev';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,6 +36,35 @@ function generateCode() {
   const last = db.prepare('SELECT code FROM appointments ORDER BY code DESC LIMIT 1').get();
   const num = last ? parseInt(last.code.replace('WB-', ''), 10) + 1 : 1001;
   return 'WB-' + num;
+}
+
+function sendConfirmationEmail({ to, code, service, doctor, date, time, patientName, price }) {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #1a73e8; margin: 0;">Rhodes Dental</h1>
+        <p style="color: #666; font-size: 14px;">Appointment Confirmation</p>
+      </div>
+      <p>Hi <strong>${patientName}</strong>,</p>
+      <p>Your appointment has been booked successfully. Here are the details:</p>
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+        <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Reference Code</td><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">${code}</td></tr>
+        <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Service</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${service}</td></tr>
+        <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Doctor</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${doctor}</td></tr>
+        <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Date</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${date}</td></tr>
+        <tr><td style="padding: 8px; border-bottom: 1px solid #eee; color: #666;">Time</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${time}</td></tr>
+        <tr><td style="padding: 8px; color: #666;">Price</td><td style="padding: 8px; font-weight: bold;">${price}</td></tr>
+      </table>
+      <p style="color: #999; font-size: 12px; margin-top: 30px;">If you need to cancel or reschedule, please contact us.</p>
+    </div>
+  `;
+
+  return resend.emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: `Appointment Confirmed - ${code}`,
+    html,
+  });
 }
 
 /* ──────────── SERVICES ──────────── */
@@ -107,7 +141,7 @@ app.post('/api/appointments', (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(code, serviceId, doctorId, date, time, patientName, phone, email, patientType || 'New patient', notes || '');
 
-  res.status(201).json({
+  const responseBody = {
     code,
     service: service.name,
     doctor: doctor.name,
@@ -116,7 +150,20 @@ app.post('/api/appointments', (req, res) => {
     patientName,
     phone,
     price: service.price,
-  });
+  };
+
+  sendConfirmationEmail({
+    to: email,
+    code,
+    service: service.name,
+    doctor: doctor.name,
+    date,
+    time,
+    patientName,
+    price: service.price,
+  }).catch(err => console.error('Failed to send confirmation email:', err));
+
+  res.status(201).json(responseBody);
 });
 
 app.get('/api/appointments', (req, res) => {

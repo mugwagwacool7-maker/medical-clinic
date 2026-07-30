@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wellbridge Dental &amp; Family Care — Book an Appointment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <div class="brand"><span class="brand-mark">W</span>Rhodes Dental</div>
+    <nav class="navlinks">
+      <a href="#services">Services</a>
+      <a href="#book">Book</a>
+      <a href="#my-appointments">My appointments</a>
+      <a href="#visit">Visit us</a>
+    </nav>
+    <button class="nav-cta" onclick="document.getElementById('book').scrollIntoView()">Book appointment</button>
+  </div>
+</header>
+
+<main>
+  <!-- ===== HERO ===== -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <div class="eyebrow">Now accepting new patients</div>
+        <h1>Dental care that fits <em>your</em> calendar, not the other way around.</h1>
+        <p>Pick a service, see real open slots, and confirm your visit in under two minutes — no phone tag, no waiting on hold.</p>
+        <div class="hero-actions">
+          <button class="btn-primary" onclick="document.getElementById('book').scrollIntoView()">Book an appointment</button>
+          <button class="btn-ghost" onclick="document.getElementById('services').scrollIntoView()">View services</button>
+        </div>
+        <div class="hero-stats">
+          <div><div class="num">4.9★</div><div class="lbl">412 patient reviews</div></div>
+          <div><div class="num">12 min</div><div class="lbl">avg. wait time</div></div>
+          <div><div class="num">6</div><div class="lbl">dentists on staff</div></div>
+        </div>
+      </div>
+
+      <div class="ticket">
+        <div class="ticket-top">
+          <div class="row1">
+            <span class="clinic-tag">RHODES · APPT SLIP</span>
+            <span class="status-dot">NEXT OPENING TODAY</span>
+          </div>
+          <h3 style="margin-top:14px;font-size:1.3rem;">Routine Cleaning &amp; Exam</h3>
+          <p style="color:var(--muted);font-size:0.88rem;margin-top:6px;">with <Dr class="Finity"></Dr>  · 30 min</p>
+        </div>
+        <div class="perf"></div>
+        <div class="ticket-bottom">
+          <div class="summary-row"><span class="k">Earliest slot</span><span class="v mono">Tomorrow, 9:40 AM</span></div>
+          <div class="summary-row"><span class="k">Location</span><span class="v">Victoria falls township</span></div>
+          <div class="summary-row"><span class="k">Est. duration</span><span class="v">30 minutes</span></div>
+          <button class="btn-primary" style="width:100%;margin-top:18px;" onclick="document.getElementById('book').scrollIntoView()">Claim this slot</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SERVICES ===== -->
+  <section id="services">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">What we treat</div>
+        <h2>Common visits, clearly priced</h2>
+        <p>Every service below can be booked directly — select one to jump straight into scheduling.</p>
+      </div>
+      <div class="services-grid" id="services-grid"></div>
+    </div>
+  </section>
+
+  <!-- ===== BOOKING ===== -->
+  <section id="book">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">Schedule a visit</div>
+        <h2>Book your appointment</h2>
+        <p>Four quick steps. Your details are securely sent to our server to confirm your appointment.</p>
+      </div>
+
+      <div class="book-shell">
+        <div class="steps" id="steps"></div>
+
+        <!-- Step 1: Service -->
+        <div class="panel active" data-panel="1">
+          <h3 style="margin-bottom:16px;">Choose a service</h3>
+          <div class="option-grid" id="service-options"></div>
+          <div class="err" id="err-1">Please select a service to continue.</div>
+          <div class="panel-nav">
+            <span></span>
+            <button class="btn-primary" onclick="goStep(2)">Continue</button>
+          </div>
+        </div>
+
+        <!-- Step 2: Doctor + date/time -->
+        <div class="panel" data-panel="2">
+          <h3 style="margin-bottom:16px;">Choose a dentist</h3>
+          <div class="option-grid" id="doctor-options"></div>
+
+          <h3 style="margin:28px 0 16px;">Pick a date</h3>
+          <div class="field-row" style="grid-template-columns:1fr;max-width:280px;">
+            <div>
+              <label for="date-input">Appointment date</label>
+              <input type="date" id="date-input">
+            </div>
+          </div>
+
+          <h3 style="margin:24px 0 14px;">Available times</h3>
+          <div class="slot-grid" id="slot-grid"></div>
+          <div class="err" id="err-2">Please select a dentist, date, and time slot.</div>
+
+          <div class="panel-nav">
+            <button class="btn-ghost" onclick="goStep(1)">Back</button>
+            <button class="btn-primary" onclick="goStep(3)">Continue</button>
+          </div>
+        </div>
+
+        <!-- Step 3: Patient details -->
+        <div class="panel" data-panel="3">
+          <h3 style="margin-bottom:18px;">Your details</h3>
+          <div class="field-row">
+            <div>
+              <label for="name-input">Full name</label>
+              <input type="text" id="name-input" placeholder="e.g. Tendai Moyo">
+            </div>
+            <div>
+              <label for="phone-input">Phone number</label>
+              <input type="tel" id="phone-input" placeholder="e.g. 077 123 4567">
+            </div>
+          </div>
+          <div class="field-row">
+            <div>
+              <label for="email-input">Email</label>
+              <input type="email" id="email-input" placeholder="you@example.com">
+            </div>
+            <div>
+              <label for="patient-type">Patient type</label>
+              <select id="patient-type">
+                <option>New patient</option>
+                <option>Returning patient</option>
+              </select>
+            </div>
+          </div>
+          <label for="notes-input">Notes for the dentist (optional)</label>
+          <textarea id="notes-input" placeholder="Any symptoms, concerns, or accessibility needs..."></textarea>
+          <div class="err" id="err-3">Please fill in your name, phone, and email.</div>
+
+          <div class="panel-nav">
+            <button class="btn-ghost" onclick="goStep(2)">Back</button>
+            <button class="btn-primary" onclick="goStep(4)">Review booking</button>
+          </div>
+        </div>
+
+        <!-- Step 4: Confirm -->
+        <div class="panel" data-panel="4">
+          <h3 style="margin-bottom:16px;">Review &amp; confirm</h3>
+          <div class="summary-box" id="summary-box"></div>
+          <div class="panel-nav">
+            <button class="btn-ghost" onclick="goStep(3)">Back</button>
+            <button class="btn-primary" onclick="confirmBooking()">Confirm appointment</button>
+          </div>
+        </div>
+
+        <!-- Step 5: Done -->
+        <div class="panel" data-panel="5">
+          <div class="confirm-wrap">
+            <div class="ticket confirm-ticket">
+              <div class="ticket-top" style="text-align:center;">
+                <div class="check-circle">✓</div>
+                <h3 style="font-size:1.3rem;">You're booked in</h3>
+                <p style="color:var(--muted);font-size:0.9rem;margin-top:6px;">A confirmation has been added under "My appointments" below.</p>
+                <div class="code-block" id="confirm-code"></div>
+              </div>
+              <div class="perf"></div>
+              <div class="ticket-bottom" id="confirm-summary"></div>
+            </div>
+          </div>
+          <div class="panel-nav" style="justify-content:center;">
+            <button class="btn-primary" onclick="document.getElementById('my-appointments').scrollIntoView()">View my appointments</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== MY APPOINTMENTS ===== -->
+  <section id="my-appointments">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">Session bookings</div>
+        <h2>My appointments</h2>
+        <p>Appointments you've booked in this browser session appear here, with the option to cancel.</p>
+      </div>
+      <div id="appt-list-wrap"></div>
+    </div>
+  </section>
+
+  <!-- ===== VISIT / HOURS ===== -->
+  <section id="visit">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="eyebrow">Find us</div>
+        <h2>Visit Rhodes Dental</h2>
+      </div>
+      <div class="info-grid">
+        <div class="info-card">
+          <h3>Hours</h3>
+          <div class="hours-row"><span class="d">Monday – Friday</span><span>8:00 AM – 6:00 PM</span></div>
+          <div class="hours-row"><span class="d">Saturday</span><span>9:00 AM – 1:00 PM</span></div>
+          <div class="hours-row"><span class="d">Sunday</span><span>Closed</span></div>
+        </div>
+        <div class="info-card">
+          <h3>Location &amp; contact</h3>
+          <div class="hours-row"><span class="d">Address</span><span>306 Parkway Rd, Victoria Falls</span></div>
+          <div class="hours-row"><span class="d">Phone</span><span>+263 77 200 1144</span></div>
+          <div class="hours-row"><span class="d">Email</span><span>hello@rhodesdental.example</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap footer-row">
+    <span>© 2026 Rhodes Dental &amp; Family Care</span>
+    <span>This is a demo booking flow — data is stored in a local SQLite database.</span>
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+<script src="script.js"></script>
+</body>
+</html>
