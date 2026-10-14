@@ -5,7 +5,7 @@ const cors = require('cors');
 const { Resend } = require('resend');
 const { getDb } = require('./database');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const FROM_EMAIL = process.env.FROM_EMAIL || 'onboarding@resend.dev';
 
 const app = express();
@@ -14,13 +14,12 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Serve React build in production
+// Serve static assets in production. Keep the SPA fallback after API routes.
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, 'client', 'dist')));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
-  });
 }
+
+if (!resend) console.warn('RESEND_API_KEY is not configured; confirmation emails are disabled.');
 
 const db = getDb();
 
@@ -152,16 +151,22 @@ app.post('/api/appointments', (req, res) => {
     price: service.price,
   };
 
-  sendConfirmationEmail({
-    to: email,
-    code,
-    service: service.name,
-    doctor: doctor.name,
-    date,
-    time,
-    patientName,
-    price: service.price,
-  }).catch(err => console.error('Failed to send confirmation email:', err));
+  if (resend) {
+    sendConfirmationEmail({
+      to: email,
+      code,
+      service: service.name,
+      doctor: doctor.name,
+      date,
+      time,
+      patientName,
+      price: service.price,
+    })
+      .then(result => console.log(`Confirmation email sent to ${email}:`, result?.id || result))
+      .catch(err => console.error(`Failed to send confirmation email to ${email}:`, err));
+  } else {
+    console.warn(`Skipped confirmation email to ${email}: RESEND_API_KEY is not configured.`);
+  }
 
   res.status(201).json(responseBody);
 });
@@ -200,6 +205,12 @@ app.delete('/api/appointments/:code', (req, res) => {
   db.prepare('DELETE FROM appointments WHERE code = ?').run(code);
   res.json({ message: 'Appointment cancelled', code });
 });
+
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`Rhodes Dental backend running on http://localhost:${PORT}`);
