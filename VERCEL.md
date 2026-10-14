@@ -1,8 +1,7 @@
 # Deploying on Vercel
 
-The frontend and API are deployed together. Vercel serves the built frontend from
-`client/dist` and routes `/api/*` requests to the serverless handler in
-`api/[...path].js`.
+The frontend and API are deployed together. The API handler is available whether
+the Vercel project Root Directory is the repository root or `client`.
 
 ## Configure the database
 
