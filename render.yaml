@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: rhodes-dental
+    runtime: node
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/services
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_PATH
+        value: /var/data/clinic.db
+      - key: RESEND_API_KEY
+        sync: false
+      - key: FROM_EMAIL
+        sync: false
+    disk:
+      name: clinic-data
+      mountPath: /var/data
+      sizeGB: 1

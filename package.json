@@ -7,7 +7,7 @@
     "client": "cd client && npm run dev",
     "dev": "npx concurrently \"npm run server\" \"npm run client\"",
     "build": "cd client && npm run build",
-    "start": "set NODE_ENV=production && node server.js",
+    "start": "node server.js",
     "postinstall": "cd client && npm install"
   },
   "dependencies": {
