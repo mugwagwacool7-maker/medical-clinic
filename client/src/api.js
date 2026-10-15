@@ -54,5 +54,5 @@ export async function fetchAppointments() {
 }
 
 export async function cancelAppointment(code) {
-  return apiDelete(API + '/appointments/' + code);
+  return apiDelete(API + '/appointments?code=' + encodeURIComponent(code));
 }

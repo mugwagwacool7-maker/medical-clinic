@@ -87,6 +87,16 @@ function respond(res, status, body) {
   return res.status(status).json(body);
 }
 
+async function cancelAppointment(res, db, code) {
+  const appointment = unwrap(
+    await db.from('appointments').select('code').eq('code', code).maybeSingle(),
+    'appointments',
+  );
+  if (!appointment) return respond(res, 404, { error: 'Appointment not found' });
+  unwrap(await db.from('appointments').delete().eq('code', code), 'appointments delete');
+  return respond(res, 200, { message: 'Appointment cancelled', code });
+}
+
 async function handleRequest(req, res, db) {
   const requestUrl = new URL(req.url, `https://${req.headers.host || 'localhost'}`);
   const route = requestUrl.pathname.replace(/^\/api\/?/, '').replace(/\/$/, '');
@@ -245,16 +255,15 @@ async function handleRequest(req, res, db) {
     return respond(res, 200, appointments.map(flattenAppointment));
   }
 
+  if (req.method === 'DELETE' && route === 'appointments') {
+    const code = requestUrl.searchParams.get('code');
+    if (!code) return respond(res, 400, { error: 'code is required' });
+    return cancelAppointment(res, db, code);
+  }
+
   const appointmentMatch = route.match(/^appointments\/([^/]+)$/);
   if (req.method === 'DELETE' && appointmentMatch) {
-    const code = decodeURIComponent(appointmentMatch[1]);
-    const appointment = unwrap(
-      await db.from('appointments').select('code').eq('code', code).maybeSingle(),
-      'appointments',
-    );
-    if (!appointment) return respond(res, 404, { error: 'Appointment not found' });
-    unwrap(await db.from('appointments').delete().eq('code', code), 'appointments delete');
-    return respond(res, 200, { message: 'Appointment cancelled', code });
+    return cancelAppointment(res, db, decodeURIComponent(appointmentMatch[1]));
   }
 
   if (route.startsWith('appointments') || route === 'services' || route === 'doctors' || route === 'slots') {
