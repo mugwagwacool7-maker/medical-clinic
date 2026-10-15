@@ -1,119 +1,33 @@
 // Shared handler for Vercel projects rooted at the repository or client directory.
-import { neon } from '@neondatabase/serverless';
+import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 
-const services = [
-  ['cleaning', 'PREVENTIVE', 'Routine Cleaning & Exam', 'A full checkup and polish to keep things on track.', '30 min', '$45'],
-  ['whitening', 'COSMETIC', 'Teeth Whitening', 'In-office whitening for a noticeably brighter smile.', '60 min', '$120'],
-  ['filling', 'RESTORATIVE', 'Cavity Filling', 'Comfortable, tooth-colored fillings for minor decay.', '45 min', '$80'],
-  ['extraction', 'SURGICAL', 'Tooth Extraction', 'Safe removal with local anesthesia and aftercare guidance.', '45 min', '$95'],
-  ['rootcanal', 'RESTORATIVE', 'Root Canal Therapy', 'Relieve pain and save the tooth in a single focused visit.', '90 min', '$260'],
-  ['consult', 'GENERAL', 'New Patient Consultation', 'A first visit to assess your dental health and plan next steps.', '30 min', '$30'],
-];
+let supabase;
 
-const doctors = [
-  ['Finity', 'Dr. Finity', 'General & preventive care'],
-  ['Mutenje', 'Dr. Mutenje', 'Cosmetic dentistry'],
-  ['Gwenhamo', 'Dr. Gwenhamo', 'Oral surgery'],
-  ['Moyo', 'Dr. Moyo', 'Endodontics (root canals)'],
-];
-
-const timeSlots = ['8:00 AM', '8:40 AM', '9:20 AM', '10:00 AM', '10:40 AM', '11:20 AM', '1:00 PM', '1:40 PM', '2:20 PM', '3:00 PM', '3:40 PM', '4:20 PM'];
-
-let schemaPromise;
-
-async function initializeDatabase(sql) {
-  await Promise.all([
-    sql`
-      CREATE TABLE IF NOT EXISTS services (
-        id TEXT PRIMARY KEY,
-        tag TEXT NOT NULL,
-        name TEXT NOT NULL,
-        "desc" TEXT NOT NULL,
-        duration TEXT NOT NULL,
-        price TEXT NOT NULL
-      )
-    `,
-    sql`
-      CREATE TABLE IF NOT EXISTS doctors (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        focus TEXT NOT NULL
-      )
-    `,
-    sql`
-      CREATE TABLE IF NOT EXISTS time_slots (
-        id SERIAL PRIMARY KEY,
-        label TEXT NOT NULL UNIQUE,
-        sort_order INTEGER NOT NULL
-      )
-    `,
-  ]);
-  await Promise.all([
-    sql`
-      CREATE TABLE IF NOT EXISTS appointments (
-        code TEXT PRIMARY KEY,
-        service_id TEXT NOT NULL REFERENCES services(id),
-        doctor_id TEXT NOT NULL REFERENCES doctors(id),
-        date DATE NOT NULL,
-        time TEXT NOT NULL,
-        patient_name TEXT NOT NULL,
-        phone TEXT NOT NULL,
-        email TEXT NOT NULL,
-        patient_type TEXT NOT NULL DEFAULT 'New patient',
-        notes TEXT DEFAULT '',
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        UNIQUE (doctor_id, date, time)
-      )
-    `,
-    sql`
-      CREATE TABLE IF NOT EXISTS blocked_slots (
-        id SERIAL PRIMARY KEY,
-        doctor_id TEXT NOT NULL REFERENCES doctors(id),
-        date DATE NOT NULL,
-        slot_label TEXT NOT NULL
-      )
-    `,
-  ]);
-  await sql`CREATE SEQUENCE IF NOT EXISTS appointment_code_seq START WITH 1001`;
-
-  await Promise.all([
-    ...services.map((service) => sql`
-      INSERT INTO services (id, tag, name, "desc", duration, price)
-      VALUES (${service[0]}, ${service[1]}, ${service[2]}, ${service[3]}, ${service[4]}, ${service[5]})
-      ON CONFLICT (id) DO NOTHING
-    `),
-    ...doctors.map((doctor) => sql`
-      INSERT INTO doctors (id, name, focus)
-      VALUES (${doctor[0]}, ${doctor[1]}, ${doctor[2]})
-      ON CONFLICT (id) DO NOTHING
-    `),
-    ...timeSlots.map((label, index) => sql`
-      INSERT INTO time_slots (label, sort_order)
-      VALUES (${label}, ${index})
-      ON CONFLICT (label) DO NOTHING
-    `),
-  ]);
-}
-
-function getDatabase() {
-  if (!process.env.DATABASE_URL) {
-    const error = new Error('DATABASE_URL is not configured');
+function getClient() {
+  const url = process.env.SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceRoleKey) {
+    const error = new Error('Supabase is not configured');
     error.statusCode = 503;
     throw error;
   }
 
-  return neon(process.env.DATABASE_URL);
-}
-
-function ensureDatabase(sql) {
-  if (!schemaPromise) {
-    schemaPromise = initializeDatabase(sql).catch((error) => {
-      schemaPromise = null;
-      throw error;
+  if (!supabase) {
+    supabase = createClient(url, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
     });
   }
-  return schemaPromise;
+  return supabase;
+}
+
+function unwrap({ data, error }, context) {
+  if (error) {
+    const wrapped = new Error(`${context} failed: ${error.message}`);
+    wrapped.code = error.code;
+    throw wrapped;
+  }
+  return data;
 }
 
 function dayOffsetFromToday(dateString) {
@@ -126,6 +40,16 @@ function dayOffsetFromToday(dateString) {
 function isValidDate(dateString) {
   const date = new Date(`${dateString}T00:00:00Z`);
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === dateString;
+}
+
+function flattenAppointment(row) {
+  const { services, doctors, ...rest } = row;
+  return {
+    ...rest,
+    service_name: services?.name ?? null,
+    price: services?.price ?? null,
+    doctor_name: doctors?.name ?? null,
+  };
 }
 
 function sendConfirmationEmail({ to, code, service, doctor, date, time, patientName, price }) {
@@ -163,16 +87,18 @@ function respond(res, status, body) {
   return res.status(status).json(body);
 }
 
-async function handleRequest(req, res, sql) {
+async function handleRequest(req, res, db) {
   const requestUrl = new URL(req.url, `https://${req.headers.host || 'localhost'}`);
   const route = requestUrl.pathname.replace(/^\/api\/?/, '').replace(/\/$/, '');
 
   if (req.method === 'GET' && route === 'services') {
-    return respond(res, 200, await sql`SELECT * FROM services ORDER BY id`);
+    const services = unwrap(await db.from('services').select('*').order('id'), 'services');
+    return respond(res, 200, services);
   }
 
   if (req.method === 'GET' && route === 'doctors') {
-    return respond(res, 200, await sql`SELECT * FROM doctors ORDER BY name`);
+    const doctors = unwrap(await db.from('doctors').select('*').order('name'), 'doctors');
+    return respond(res, 200, doctors);
   }
 
   if (req.method === 'GET' && route === 'slots') {
@@ -182,13 +108,18 @@ async function handleRequest(req, res, sql) {
       return respond(res, 400, { error: 'A valid date and doctorId are required' });
     }
 
-    const slots = await sql`SELECT * FROM time_slots ORDER BY sort_order`;
-    const blocked = await sql`
-      SELECT slot_label FROM blocked_slots WHERE doctor_id = ${doctorId} AND date = ${date}
-    `;
-    const booked = await sql`
-      SELECT time FROM appointments WHERE doctor_id = ${doctorId} AND date = ${date}
-    `;
+    const slots = unwrap(
+      await db.from('time_slots').select('*').order('sort_order'),
+      'time_slots',
+    );
+    const blocked = unwrap(
+      await db.from('blocked_slots').select('slot_label').eq('doctor_id', doctorId).eq('date', date),
+      'blocked_slots',
+    );
+    const booked = unwrap(
+      await db.from('appointments').select('time').eq('doctor_id', doctorId).eq('date', date),
+      'appointments',
+    );
     const unavailable = new Set([
       ...blocked.map((slot) => slot.slot_label),
       ...booked.map((appointment) => appointment.time),
@@ -212,44 +143,65 @@ async function handleRequest(req, res, sql) {
       return respond(res, 400, { error: 'Invalid appointment date' });
     }
 
-    const [service] = await sql`SELECT * FROM services WHERE id = ${serviceId}`;
-    const [doctor] = await sql`SELECT * FROM doctors WHERE id = ${doctorId}`;
+    const service = unwrap(
+      await db.from('services').select('*').eq('id', serviceId).maybeSingle(),
+      'services',
+    );
+    const doctor = unwrap(
+      await db.from('doctors').select('*').eq('id', doctorId).maybeSingle(),
+      'doctors',
+    );
     if (!service) return respond(res, 400, { error: 'Invalid service' });
     if (!doctor) return respond(res, 400, { error: 'Invalid doctor' });
 
-    const slots = await sql`SELECT label FROM time_slots ORDER BY sort_order`;
+    const slots = unwrap(
+      await db.from('time_slots').select('label').order('sort_order'),
+      'time_slots',
+    );
     const slotIndex = slots.findIndex((slot) => slot.label === time);
     if (slotIndex === -1) return respond(res, 400, { error: 'Invalid time slot' });
 
     const offset = dayOffsetFromToday(date);
-    const [blocked] = await sql`
-      SELECT id FROM blocked_slots
-      WHERE doctor_id = ${doctorId} AND date = ${date} AND slot_label = ${time}
-    `;
-    const [existing] = await sql`
-      SELECT code FROM appointments WHERE doctor_id = ${doctorId} AND date = ${date} AND time = ${time}
-    `;
+    const blocked = unwrap(
+      await db.from('blocked_slots').select('id')
+        .eq('doctor_id', doctorId).eq('date', date).eq('slot_label', time)
+        .maybeSingle(),
+      'blocked_slots',
+    );
+    const existing = unwrap(
+      await db.from('appointments').select('code')
+        .eq('doctor_id', doctorId).eq('date', date).eq('time', time)
+        .maybeSingle(),
+      'appointments',
+    );
     if ((slotIndex + offset) % 5 === 0 || blocked || existing) {
       return respond(res, 409, { error: 'Time slot is no longer available' });
     }
 
-    const [sequence] = await sql`SELECT nextval('appointment_code_seq') AS number`;
-    const code = `WB-${sequence.number}`;
-    try {
-      await sql`
-        INSERT INTO appointments
-          (code, service_id, doctor_id, date, time, patient_name, phone, email, patient_type, notes)
-        VALUES
-          (${code}, ${serviceId}, ${doctorId}, ${date}, ${time}, ${patientName}, ${phone}, ${email},
-           ${patientType || 'New patient'}, ${notes || ''})
-      `;
-    } catch (error) {
-      if (error.code === '23505') {
+    const { data: inserted, error: insertError } = await db
+      .from('appointments')
+      .insert({
+        service_id: serviceId,
+        doctor_id: doctorId,
+        date,
+        time,
+        patient_name: patientName,
+        phone,
+        email,
+        patient_type: patientType || 'New patient',
+        notes: notes || '',
+      })
+      .select('code')
+      .single();
+
+    if (insertError) {
+      if (insertError.code === '23505') {
         return respond(res, 409, { error: 'Time slot is no longer available' });
       }
-      throw error;
+      throw new Error(`appointments insert failed: ${insertError.message}`);
     }
 
+    const code = inserted.code;
     const response = {
       code,
       service: service.name,
@@ -280,43 +232,28 @@ async function handleRequest(req, res, sql) {
   if (req.method === 'GET' && route === 'appointments') {
     const phone = requestUrl.searchParams.get('phone');
     const email = requestUrl.searchParams.get('email');
-    let appointments;
+    let query = db
+      .from('appointments')
+      .select('*, services(name, price), doctors(name)')
+      .order('created_at', { ascending: false });
     if (phone) {
-      appointments = await sql`
-        SELECT a.*, s.name AS service_name, s.price, d.name AS doctor_name
-        FROM appointments a
-        JOIN services s ON s.id = a.service_id
-        JOIN doctors d ON d.id = a.doctor_id
-        WHERE a.phone = ${phone}
-        ORDER BY a.created_at DESC
-      `;
+      query = query.eq('phone', phone);
     } else if (email) {
-      appointments = await sql`
-        SELECT a.*, s.name AS service_name, s.price, d.name AS doctor_name
-        FROM appointments a
-        JOIN services s ON s.id = a.service_id
-        JOIN doctors d ON d.id = a.doctor_id
-        WHERE a.email = ${email}
-        ORDER BY a.created_at DESC
-      `;
-    } else {
-      appointments = await sql`
-        SELECT a.*, s.name AS service_name, s.price, d.name AS doctor_name
-        FROM appointments a
-        JOIN services s ON s.id = a.service_id
-        JOIN doctors d ON d.id = a.doctor_id
-        ORDER BY a.created_at DESC
-      `;
+      query = query.eq('email', email);
     }
-    return respond(res, 200, appointments);
+    const appointments = unwrap(await query, 'appointments');
+    return respond(res, 200, appointments.map(flattenAppointment));
   }
 
   const appointmentMatch = route.match(/^appointments\/([^/]+)$/);
   if (req.method === 'DELETE' && appointmentMatch) {
     const code = decodeURIComponent(appointmentMatch[1]);
-    const [appointment] = await sql`SELECT code FROM appointments WHERE code = ${code}`;
+    const appointment = unwrap(
+      await db.from('appointments').select('code').eq('code', code).maybeSingle(),
+      'appointments',
+    );
     if (!appointment) return respond(res, 404, { error: 'Appointment not found' });
-    await sql`DELETE FROM appointments WHERE code = ${code}`;
+    unwrap(await db.from('appointments').delete().eq('code', code), 'appointments delete');
     return respond(res, 200, { message: 'Appointment cancelled', code });
   }
 
@@ -329,23 +266,22 @@ async function handleRequest(req, res, sql) {
 }
 
 export default async function apiHandler(req, res) {
-  let sql;
+  let db;
   try {
-    sql = getDatabase();
-    await ensureDatabase(sql);
+    db = getClient();
   } catch (error) {
-    console.error('Failed to initialize the appointments database:', error);
+    console.error('Failed to initialize the Supabase client:', error);
     return respond(res, error.statusCode || 500, {
       error: error.statusCode === 503
-        ? 'The appointments database is not configured. Set DATABASE_URL in Vercel.'
+        ? 'The appointments database is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel.'
         : 'The appointments database is unavailable.',
     });
   }
 
   try {
-    return await handleRequest(req, res, sql);
+    return await handleRequest(req, res, db);
   } catch (error) {
     console.error('Vercel API request failed:', error);
     return respond(res, 500, { error: 'The request could not be completed. Please try again.' });
   }
-};
+}

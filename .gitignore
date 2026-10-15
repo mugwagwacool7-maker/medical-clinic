@@ -5,3 +5,4 @@ clinic.db-shm
 clinic.db-wal
 client/node_modules/
 client/dist/
+supabase/.temp/
